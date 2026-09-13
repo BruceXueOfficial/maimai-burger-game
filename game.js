@@ -9,7 +9,11 @@ const score=()=>R.summarize(rows,elapsed,currentOrder().layers,selectedDish===cu
 const deviceNav=window.navigator||{};
 const MOBILE=!!deviceNav.userAgentData?.mobile||/Android|iPhone|iPad|iPod/i.test(deviceNav.userAgent||'')||(deviceNav.platform==='MacIntel'&&deviceNav.maxTouchPoints>1);
 let sensorBusy=false,sensorWaitTimer,pendingSensorAction=null;
-const GYRO={deadzone:.35,horizontalGain:27,verticalGain:18,response:30};
+const GYRO={deadzone:.15,horizontalGain:48,verticalGain:32,spring:110,damping:8,maxSpeed:1200};
+let gyroVelocity={x:0,y:0};
+function resetInertia(){gyroVelocity={x:0,y:0};}
+// Substeps keep the underdamped response consistent across screen refresh rates.
+function moveGyro(dt){const steps=Math.max(1,Math.ceil(dt*120)),h=dt/steps;for(let i=0;i<steps;i++){for(const axis of ['x','y']){gyroVelocity[axis]=R.clamp(gyroVelocity[axis]+((target[axis]-hand[axis])*GYRO.spring-gyroVelocity[axis]*GYRO.damping)*h,-GYRO.maxSpeed,GYRO.maxSpeed);hand[axis]+=gyroVelocity[axis]*h;const lo=axis==='x'?410:170,hi=axis==='x'?1190:Math.max(170,surface-28),bounded=R.clamp(hand[axis],lo,hi);if(bounded!==hand[axis]){hand[axis]=bounded;gyroVelocity[axis]=0;}}}}
 const choices=Object.keys(FOOD),imgs={},keys=new Set();let scale=1,ready=false,mode='intro',selection=null,elapsed=0,rows=[],stack=[],fall=null,settle=0,surface=690,previousX=800,hand={x:800,y:340},target={x:800,y:340},heldHeight=340,feedbackUntil=0,last=performance.now(),audioOn=true,audioCtx,gyroOn=false,lastSensor=null,neutral=null,sensorTime=0,dragging=false,toastTimer,feedback='';
 function resize(){const width=document.documentElement?.clientWidth||innerWidth,height=document.documentElement?.clientHeight||innerHeight;scale=Math.min(width/1600,height/900);$('game').style.transform=`scale(${scale})`;$('game').style.left=(width-1600*scale)/2+'px';$('game').style.top=(height-900*scale)/2+'px';}
 addEventListener('resize',resize);resize();
@@ -26,8 +30,8 @@ function recipeUI(){ $('orderName').textContent=currentOrder().name;$('orderProg
 function updateControls(){syncInputUI();const busy=mode!=='playing'||!!fall||settle>0||serveRequested||rows.length>=12; $('serve').disabled=mode!=='playing'||serveRequested;$('serveHint').textContent=serveRequested?'落稳后立即出餐':'随时提交本单';document.querySelectorAll('.dish-card').forEach(b=>{b.disabled=mode!=='playing'||serveRequested;b.classList.toggle('selected',b.dataset.dish===selectedDish);b.setAttribute('aria-pressed',String(b.dataset.dish===selectedDish));});$('dishLabel').textContent='菜品：'+(R.MENU.find(d=>d.id===selectedDish)?.name||'未选择');document.querySelectorAll('.ingredient').forEach(b=>{b.disabled=busy;b.classList.toggle('selected',b.dataset.type===selection);b.setAttribute('aria-pressed',String(b.dataset.type===selection));});$('drop').disabled=busy||!selection;$('dropHint').textContent=fall?'正在下落':settle>0?'食材落稳中':selection?FOOD[selection].name:'请先选食材';$('selectionLabel').textContent=selection?'手中：'+FOOD[selection].name:'先选料，再对准';}
 function choose(t){if(mode!=='playing'||fall||settle>0||serveRequested||rows.length>=12)return;selection=t;const f=FOOD[t];target.y=R.clamp(target.y,170,surface-28);hand.y=R.clamp(hand.y,170,surface-28);beep(460,.045);updateControls();}
 function start(){if(!ready)return;if(gateMobile(start))return;orderIndex=0;sessionScores=[];beginOrder();}
-function beginOrder(){selectedDish=null;serveRequested=false;dragging=false;mode='playing';selection=null;elapsed=0;rows=[];stack=[];fall=null;settle=0;surface=690;previousX=800;hand={x:800,y:340};target={...hand};keys.clear();feedback='';$('overlay').hidden=true;$('resultOverlay').hidden=true;$('pauseOverlay').hidden=true;$('showResult').hidden=true;recipeUI();updateControls();musicPlay(true);beep();last=performance.now();}
-function drop(){if(mode!=='playing'||!selection||fall||settle>0||serveRequested||rows.length>=12)return;const f=FOOD[selection],y=R.clamp(hand.y,170,surface-28);heldHeight=y;fall={type:selection,x:hand.x,from:y,y,age:0,target:surface,previousX,landed:Math.abs(hand.x-previousX)<=175};beep(390,.06);updateControls();}
+function beginOrder(){resetInertia();selectedDish=null;serveRequested=false;dragging=false;mode='playing';selection=null;elapsed=0;rows=[];stack=[];fall=null;settle=0;surface=690;previousX=800;hand={x:800,y:340};target={...hand};keys.clear();feedback='';$('overlay').hidden=true;$('resultOverlay').hidden=true;$('pauseOverlay').hidden=true;$('showResult').hidden=true;recipeUI();updateControls();musicPlay(true);beep();last=performance.now();}
+function drop(){if(mode!=='playing'||!selection||fall||settle>0||serveRequested||rows.length>=12)return;const f=FOOD[selection],y=R.clamp(hand.y,170,surface-28);heldHeight=y;resetInertia();fall={type:selection,x:hand.x,from:y,y,age:0,target:surface,previousX,landed:Math.abs(hand.x-previousX)<=175};beep(390,.06);updateControls();}
 function land(){const a=fall,f=FOOD[a.type],neat=a.landed?R.alignment(a.x,a.previousX):0;const correct=a.type===currentOrder().layers[rows.length];rows.push({type:a.type,landed:a.landed,alignment:neat,x:Math.round(a.x),height:Math.round(a.target-a.from),seconds:Math.round(elapsed*10)/10});if(a.landed){stack.push({type:a.type,x:a.x,y:surface-f.h*.72});surface-=f.lift;previousX=a.x;}
  feedback=!a.landed?'滑落了，这一层未落稳':!correct?'放错了！':neat>=95?'完美贴合！':neat>=75?'不错，继续出餐！':'有点歪啦，下层稳一点';feedbackUntil=elapsed+1.2;beep(!correct||!a.landed?220:neat>=95?950:650,.14);fall=null;selection=null;settle=.2;target.y=R.clamp(target.y,170,surface-28);recipeUI();updateControls();if(serveRequested)finish();else if(rows.length>=12)toast('操作台已满，请点击出餐');}
 function serve(){if(mode!=='playing'||serveRequested)return;serveRequested=true;selection=null;if(fall){updateControls();return;}finish();}
@@ -42,7 +46,7 @@ function finish(){if(mode!=='playing')return;mode='result';musicPause();keys.cle
  $('roundLog').innerHTML=Array.from({length:Math.max(rows.length,currentOrder().layers.length)},(_,i)=>{const t=currentOrder().layers[i],r=rows[i];return `第 ${i+1} 层：应放 ${t?FOOD[t].name:'无（多放）'} → ${r?FOOD[r.type].name+'，'+(!r.landed?'滑落':r.type===t?'正确':'放错了！')+'，规整 '+r.alignment+' 分':'未放置'}`;}).join('<br>');
  $('sessionLog').innerHTML=sessionScores.map((r,i)=>`第 ${i+1} 单，${r.name}，${r.total} 分，${r.seconds.toFixed(1)} 秒`).join('<br>');
  const c=$('resultBurger').getContext('2d');c.clearRect(0,0,400,400);c.save();const topY=Math.min(643,...stack.map(a=>a.y)),leftX=Math.min(550,...stack.map(a=>a.x-160)),rightX=Math.max(1050,...stack.map(a=>a.x+160));const fit=Math.min(360/(rightX-leftX),350/(765-topY));c.translate(200-(leftX+rightX)/2*fit,375-765*fit);c.scale(fit,fit);art(c,'paper',800,682,460,115);art(c,'bottom',800,660,260,90);stack.forEach(a=>{const f=FOOD[a.type];art(c,a.type,a.x,a.y,f.w,f.h)});c.restore();updateControls();beep(1050,.25);}
-function pause(){if(mode!=='playing')return;mode='paused';musicPause();keys.clear();$('pauseOverlay').hidden=false;updateControls();}
+function pause(){if(mode!=='playing')return;mode='paused';resetInertia();musicPause();keys.clear();$('pauseOverlay').hidden=false;updateControls();}
 function resume(){if(mode!=='paused')return;if(gateMobile(resume))return;mode='playing';keys.clear();last=performance.now();$('pauseOverlay').hidden=true;musicPlay();updateControls();}
 function syncInputUI(){
  $('controlHint').hidden=MOBILE||gyroOn||mode!=='playing';
@@ -53,13 +57,13 @@ function syncInputUI(){
 }
 function sensorFresh(){return gyroOn&&lastSensor&&performance.now()-sensorTime<3500;}
 function gateMobile(action){if(!MOBILE||sensorFresh())return false;enableGyro(action);return true;}
-function sensorFailure(message){
+function sensorFailure(message){resetInertia();
  clearTimeout(sensorWaitTimer);sensorBusy=false;gyroOn=false;lastSensor=null;
  if(MOBILE){if(mode==='playing'){pause();pendingSensorAction=resume;}$('sensorOverlay').hidden=false;$('sensorMessage').textContent=message;$('sensorRetry').disabled=false;syncInputUI();}
  else{pendingSensorAction=null;switchToTouch(message+'，可使用拖动操作');}
 }
-function switchToTouch(msg){if(MOBILE){sensorFailure('体感信号中断，请保持横屏后重新开启。');return;}gyroOn=false;$('inputName').textContent='拖动 / 方向键';syncInputUI();if(msg)toast(msg);}
-function calibrate(){if(!lastSensor){if(MOBILE)enableGyro();else toast('还未收到体感数据，可先用拖动操作');return;}neutral={...lastSensor};target={x:800,y:R.clamp(surface-155,170,surface-28)};hand={...target};toast('已校准，轻轻倾斜即可移动');}
+function switchToTouch(msg){if(MOBILE){sensorFailure('体感信号中断，请保持横屏后重新开启。');return;}gyroOn=false;resetInertia();$('inputName').textContent='拖动 / 方向键';syncInputUI();if(msg)toast(msg);}
+function calibrate(){if(!lastSensor){if(MOBILE)enableGyro();else toast('还未收到体感数据，可先用拖动操作');return;}resetInertia();neutral={...lastSensor};target={x:800,y:R.clamp(surface-155,170,surface-28)};hand={...target};toast('已校准，轻轻倾斜即可移动');}
 async function enableGyro(action=null){
  if(sensorBusy)return;
  if(action)pendingSensorAction=action;
@@ -89,7 +93,7 @@ function draw(){ctx.clearRect(0,0,1600,900);art(ctx,'bg',800,0,1600,900);art(ctx
  }
 }
 let hudTick=0;
-function frame(now){const raw=Math.max(0,(now-last)/1000),dt=Math.min(raw,.05);last=now;if(mode==='playing'&&raw>1.5){pause();toast('画面中断，已自动暂停');}if(mode==='playing'){if(elapsed+raw>=60){elapsed=60;finish();draw();requestAnimationFrame(frame);return;}elapsed+=raw;if(gyroOn&&lastSensor&&now-sensorTime>3500){sensorFailure('体感信号中断，请保持横屏后重新开启。');if(MOBILE){draw();requestAnimationFrame(frame);return;}}if(!fall){const dx=(keys.has('ArrowRight')?1:0)-(keys.has('ArrowLeft')?1:0),dy=(keys.has('ArrowDown')?1:0)-(keys.has('ArrowUp')?1:0);target.x=R.clamp(target.x+dx*330*dt,410,1190);target.y=R.clamp(target.y+dy*260*dt,170,surface-28);const smooth=1-Math.exp(-dt*(gyroOn?GYRO.response:18));hand.x+=(target.x-hand.x)*smooth;hand.y+=(target.y-hand.y)*smooth;}
+function frame(now){const raw=Math.max(0,(now-last)/1000),dt=Math.min(raw,.05);last=now;if(mode==='playing'&&raw>1.5){pause();toast('画面中断，已自动暂停');}if(mode==='playing'){if(elapsed+raw>=60){elapsed=60;finish();draw();requestAnimationFrame(frame);return;}elapsed+=raw;if(gyroOn&&lastSensor&&now-sensorTime>3500){sensorFailure('体感信号中断，请保持横屏后重新开启。');if(MOBILE){draw();requestAnimationFrame(frame);return;}}if(!fall){const dx=(keys.has('ArrowRight')?1:0)-(keys.has('ArrowLeft')?1:0),dy=(keys.has('ArrowDown')?1:0)-(keys.has('ArrowUp')?1:0);target.x=R.clamp(target.x+dx*330*dt,410,1190);target.y=R.clamp(target.y+dy*260*dt,170,surface-28);if(gyroOn){moveGyro(dt);}else{const smooth=1-Math.exp(-dt*18);hand.x+=(target.x-hand.x)*smooth;hand.y+=(target.y-hand.y)*smooth;}}
  if(fall){fall.age+=dt;fall.y=fall.from+.5*900*fall.age*fall.age;if(fall.y>=fall.target){if(fall.landed||fall.y>800){land();} }}
  if(settle>0){settle=Math.max(0,settle-dt);if(!settle)updateControls();}if(elapsed>=60&&mode==='playing'){elapsed=60;finish();}}
  if(now-hudTick>80){hudTick=now;$('time').innerHTML=elapsed.toFixed(1)+'<small> 秒</small>';$('timebar').style.width=100*(1-elapsed/60)+'%';$('layers').textContent=rows.length+' / '+currentOrder().layers.length;$('orderScore').textContent=score().accuracy+' 分';$('neatScore').textContent=rows.length?score().neat+' 分':'—';const gap=surface-hand.y;$('heightbar').style.width=R.clamp(gap/350*100,0,100)+'%';$('heightText').textContent=gap<75?'低位':gap<180?'中位':'高位';$('feedback').textContent=mode==='playing'&&elapsed<feedbackUntil?feedback:'';}
