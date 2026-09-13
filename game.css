@@ -39,3 +39,18 @@ html,body{position:fixed;inset:0;overscroll-behavior:none;-webkit-text-size-adju
 #handScene{position:absolute;inset:0;width:100%;height:100%;z-index:5;pointer-events:none}#serve,#drop{z-index:6}header,.order,.metrics{z-index:6}#showResult{z-index:10}.ingredient{cursor:default;user-select:none;transition:background .1s,border-color .1s,box-shadow .1s}.ingredient.hovered{border-color:#d92b10;background:#fffbe5;box-shadow:0 0 0 3px #ffbc0d,0 0 18px #ffcc42;transform:translateY(-3px)}.ingredient.selected:not(.hovered){border-color:#bf8200;background:#ffe3a0;box-shadow:none}#ingredients{overflow:visible}.ingredient{min-width:0;flex:1}.ingredient canvas{max-width:100%}#materialHeading{font-size:19px}#drop.grabbing{background:#ffe785}#drop.grabbing::before{transform:rotate(180deg)}
 
 .ingredient.hovered:after{content:"";position:absolute;top:4px;right:5px;width:10px;height:10px;border-radius:50%;background:#d92b10}.ingredient.hovered{outline:3px solid #d92b10;outline-offset:-3px}
+
+/* Quiet recipe reference and a larger, uncluttered ingredient rail. */
+.tray-label,footer .tip,#controlHint,.live{display:none!important}
+.tray{padding:12px 14px}#ingredients{height:100%}
+.ingredient span{font-size:24px;line-height:1.2}.ingredient canvas{height:66px;object-fit:contain}
+.order li{font-size:25px;height:58px}.order h2{font-size:34px}.order{width:320px;padding:20px}
+.order p{font-size:20px}.order .eyebrow{font-size:21px}
+.mobile-gyro #gyro,.mobile-gyro #calibrate{display:none}
+.mobile-gyro .small{font-size:28px;min-width:125px}
+.mobile-gyro .brand small,.mobile-gyro .timer small,.mobile-gyro .height small{display:none}
+.mobile-gyro .timer>span,.mobile-gyro .height span,.mobile-gyro .height b{font-size:26px}
+.mobile-gyro footer{gap:16px;height:150px}
+.mobile-gyro #drop,.mobile-gyro #serve{font-size:40px}
+html{background:#f6e5c8 url('assets/01-kitchen-background.png') center/cover no-repeat}
+body{background:transparent}
