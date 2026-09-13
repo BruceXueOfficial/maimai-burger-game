@@ -1,5 +1,28 @@
 'use strict';
 const $=id=>document.getElementById(id),R=BurgerRules,cv=$('scene'),ctx=cv.getContext('2d'),handCv=$('handScene'),handCtx=handCv.getContext('2d');
+const CUSTOMERS=[
+ {id:'courier',name:'骑手大哥',image:'assets/customers/courier.png'},
+ {id:'student',name:'学生小哥',image:'assets/customers/student.png'},
+ {id:'woman',name:'职场女士',image:'assets/customers/woman.png'},
+ {id:'office',name:'上班族小哥',image:'assets/customers/office.png'},
+ {id:'traveler',name:'金发旅人',image:'assets/customers/traveler.png'}
+];
+function customerMood(total){return total>=80?'happy':total>=60?'neutral':'angry';}
+function assignCustomer(total){return {customerIndex:Math.floor(Math.random()*CUSTOMERS.length),mood:customerMood(total)};}
+const MOOD_LABEL={happy:'开心',neutral:'普通',angry:'愤怒'};
+function portraitStyle(r){return `background-image:url('${CUSTOMERS[r.customerIndex].image}');background-position:${r.mood==='happy'?0:r.mood==='neutral'?50:100}% 50%`;}
+function selectCustomerReview(index){
+ const r=sessionScores[index];if(!r)return;
+ const customer=CUSTOMERS[r.customerIndex],portrait=$('customerPortrait');
+ portrait.style.backgroundImage=`url('${customer.image}')`;
+ portrait.style.backgroundPosition=`${r.mood==='happy'?0:r.mood==='neutral'?50:100}% 50%`;
+ portrait.setAttribute('aria-label',`${customer.name}，${MOOD_LABEL[r.mood]}`);
+ $('customerMood').textContent=MOOD_LABEL[r.mood];
+ $('customerReview').textContent=`第 ${index+1} 单 ${customer.name}，${r.total} 分`;
+ $('customerQuote').textContent=r.incident?'这份食材不新鲜，请认真检查！':r.mood==='happy'?'做得漂亮，下次还来！':r.mood==='neutral'?'还不错，再快一点就更好了。':'这份汉堡还需要好好改进。';
+ $('customerStage').dataset.mood=r.mood;
+ Array.from($('sessionLog').children).forEach((el,i)=>{el.classList.toggle('active',i===index);el.setAttribute('aria-pressed',String(i===index));});
+}
 const ART={mayo:['assets/13-mayo.png',[76, 223, 1902, 668]],grilled:['assets/13-grilled-v2.png',[30, 146, 1744, 769]],crispy:['assets/13-crispy.png',[63, 276, 1490, 747]],bg:['assets/01-kitchen-background.png'],counter:['assets/02-wide-counter-v4.png'],paper:['assets/03-wrapper.png',[24,329,1649,747]],bottom:['assets/04-bottom-bun-v2.png',[34,513,1221,980]],patty:['assets/05-beef-patty.png',[67,447,1189,846]],cheese:['assets/06-cheese.png',[75,513,1179,793]],top:['assets/07-top-bun.png',[38,370,1216,927]],middle:['assets/08-middle-bun-v2.png',[28,467,1227,864]],lettuce:['assets/09-lettuce.png',[34,464,1220,818]],hold:['assets/10-hand-hold.png'],release:['assets/11-hand-release-v3.png'],idle:['assets/12-hand-idle-v3.png']};
 ART.spoiledGrilled=['assets/14-spoiled-grilled.png',[20,230,1516,790]];ART.spoiledCrispy=['assets/14-spoiled-crispy.png',[20,230,1516,790]];ART.spoiledMayo=['assets/14-spoiled-mayo.png',[20,300,1516,720]];
 const FOOD={crispy:{name:'麦辣鸡腿排',w:275,h:94,lift:48},grilled:{name:'板烧鸡腿排',w:280,h:85,lift:42},mayo:{name:'蛋黄酱',w:253,h:35,lift:13},patty:{name:'牛肉饼',w:256,h:77,lift:39},cheese:{name:'芝士',w:277,h:53,lift:17},lettuce:{name:'生菜',w:285,h:64,lift:29},middle:{name:'中层面包',w:260,h:70,lift:38},top:{name:'顶部面包',w:270,h:123,lift:60},bottom:{name:'底部面包',w:260,h:88,lift:47}};
@@ -81,7 +104,7 @@ function serve(){if(mode!=='playing'||performance.now()<orderReadyAt||serveReque
 function nextOrder(){if(mode!=='result')return;if(gateMobile(nextOrder))return;if(sessionScores.length===10){start();return;}orderIndex++;beginOrder();}
 function finish(){
  if(mode!=='playing')return;
- const s=score(),number=orderIndex+1;sessionScores.push({...s,name:currentOrder().name,discarded});keys.clear();fall=null;selection=null;
+ const s=score(),number=orderIndex+1;sessionScores.push({...s,...assignCustomer(s.total),name:currentOrder().name,discarded});keys.clear();fall=null;selection=null;
  if(sessionScores.length<10){
   orderIndex++;beginOrder();
   if(s.incident){$('toast').classList.add('incident-toast');toast(`顾客生气了！第 ${number} 单含变质食材，食品安全事故，本单 0 分`);}else{$('toast').classList.remove('incident-toast');toast(`第 ${number} 单已出餐，${s.total} 分`);}
@@ -96,7 +119,9 @@ function finish(){
  $('again').textContent='再挑战 10 单';
  $('scoreDetails').innerHTML=[['出餐准确度',shown.accuracy,'40%'],['形态规整度',shown.neat,'40%'],['出餐速度',shown.speed,'20%']].map(([n,v,w])=>`<div class="score-row">${n}<b>${v}<small>权重 ${w}</small></b><div class="score-track"><i style="width:${v}%"></i></div></div>`).join('');
  $('roundLog').innerHTML='';
- $('sessionLog').innerHTML=sessionScores.map((r,i)=>`<div class="order-result${r.incident?' unsafe':''}"><span>第 ${i+1} 单</span><strong>${r.name}</strong><b>${r.total} 分</b><small>${r.incident?'食品安全事故':r.seconds.toFixed(1)+' 秒'}</small></div>`).join('');
+ $('sessionLog').innerHTML=sessionScores.map((r,i)=>`<button type="button" data-review="${i}" class="order-result${r.incident?' unsafe':''}" aria-pressed="false"><span class="customer-thumb" style="${portraitStyle(r)}" aria-hidden="true"></span><span class="order-result-copy"><span>第 ${i+1} 单 ${CUSTOMERS[r.customerIndex].name}</span><strong>${r.name}</strong><small>${r.incident?'食品安全事故':r.seconds.toFixed(1)+' 秒'}，${MOOD_LABEL[r.mood]}</small></span><b>${r.total} 分</b></button>`).join('');
+ selectCustomerReview(0);
+
  const c=$('resultBurger').getContext('2d');c.clearRect(0,0,400,400);c.save();const topY=Math.min(643,...stack.map(a=>a.y)),leftX=Math.min(550,...stack.map(a=>a.x-160)),rightX=Math.max(1050,...stack.map(a=>a.x+160));const fit=Math.min(360/(rightX-leftX),350/(765-topY));c.translate(200-(leftX+rightX)/2*fit,375-765*fit);c.scale(fit,fit);art(c,'paper',800,682,460,115);art(c,'bottom',800,660,260,90);stack.forEach(a=>{const f=FOOD[a.type];art(c,a.type,a.x,a.y,f.w,f.h)});c.restore();updateControls();beep(incidents?180:1050,.25);
 }
 function pause(){if(mode!=='playing')return;mode='paused';resetInertia();musicPause();keys.clear();$('pauseOverlay').hidden=false;updateControls();}
@@ -157,3 +182,5 @@ $('start').onclick=start;$('startGyro').onclick=()=>enableGyro(start);$('gyro').
 Promise.all(Object.entries(ART).map(([k,[url]])=>new Promise((resolve,reject)=>{const im=new Image;im.onload=()=>{imgs[k]=im;resolve();};im.onerror=()=>reject(Error(url));im.src=url;}))).then(()=>{ready=true;$('loadStatus').textContent='食材准备就绪，共 10 单，每单最多 60 秒';$('start').disabled=false;$('startGyro').disabled=false;randomizeTray();recipeUI();updateControls();}).catch(e=>{$('loadStatus').textContent='素材加载失败，请刷新重试：'+e.message;});requestAnimationFrame(frame);
 
 syncInputUI();
+
+$('sessionLog').onclick=event=>{const button=event.target.closest('[data-review]');if(button)selectCustomerReview(Number(button.dataset.review));};
