@@ -54,3 +54,25 @@ html,body{position:fixed;inset:0;overscroll-behavior:none;-webkit-text-size-adju
 .mobile-gyro #drop,.mobile-gyro #serve{font-size:40px}
 html{background:#f6e5c8 url('assets/01-kitchen-background.png') center/cover no-repeat}
 body{background:transparent}
+
+/* Rework affordance and continuous-service results. */
+#drop.picking-up{background:#65d79b;border-color:#178b52;box-shadow:0 10px 0 #147b49,0 15px 20px #173a293b,inset 0 3px 0 #d8ffe9;color:#124c30}
+#drop.picking-up:before{transform:rotate(180deg)}#drop.discarding{background:#edbd7a;border-color:#ae7139}
+#toast{top:100px;bottom:auto;pointer-events:none;z-index:40;font-size:28px}
+#toast.incident-toast{background:#9d241b;border:3px solid #ffd5af;color:#fff5e9}
+#safetyReport{display:flex;align-items:center;gap:22px;background:#ffe0cd;border:3px solid #cf3829;border-radius:20px;padding:14px 22px;margin:12px 0;color:#8b251c}
+#safetyReport strong{font-size:29px}#safetyReport p{margin:6px 0;font-size:22px}.angry-customer{font-size:68px}
+.food-incident .result{border-color:#bd3022}.food-incident h1{color:#ae281c}
+#sessionLog{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:20px 0}.order-result{display:grid;grid-template-columns:85px 1fr 75px;gap:8px;padding:12px;border-radius:12px;background:#ffe6a0;font-size:21px}.order-result small{grid-column:2/4;font-size:18px}.order-result.unsafe{background:#ffd4bc;color:#9b241b}
+.result{max-height:850px;overflow:auto}.result-body{max-height:280px}.result-body canvas{max-height:270px}
+
+.result{width:1400px;max-width:calc(100% - 100px)}
+.result-body{display:block;margin:12px 0;max-height:none}.result-body canvas{display:none}
+.score-details{display:flex;gap:20px}.score-details .score-row{flex:1;min-width:0;font-size:24px}
+.score-details .score-row b{font-size:25px}.score-details .score-row small{font-size:17px}
+#sessionLog{gap:8px;margin:14px 0;line-height:1.3}.order-result{font-size:24px;padding:9px 12px;gap:4px 9px}.order-result small{font-size:19px}
+#safetyReport{padding:8px 20px;margin:8px 0}.angry-customer{font-size:55px}
+.order-result{grid-template-columns:76px 1fr 75px 145px;align-items:center;padding:12px 10px}.order-result small{grid-column:auto;font-size:19px}.order-result strong{font-size:23px}
+.order-result{grid-template-columns:92px 1fr 72px 130px}.order-result>span{white-space:nowrap}
+#resultOverlay .result-head h1{font-size:40px;margin:6px 0}#resultOverlay .result-head p{margin:6px 0}
+#resultOverlay .modal-actions{margin:8px 0 4px}#resultOverlay .modal-actions button{font-size:26px;padding:12px 24px}

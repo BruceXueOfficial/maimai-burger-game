@@ -1,10 +1,15 @@
 'use strict';
 const $=id=>document.getElementById(id),R=BurgerRules,cv=$('scene'),ctx=cv.getContext('2d'),handCv=$('handScene'),handCtx=handCv.getContext('2d');
 const ART={mayo:['assets/13-mayo.png',[76, 223, 1902, 668]],grilled:['assets/13-grilled-v2.png',[30, 146, 1744, 769]],crispy:['assets/13-crispy.png',[63, 276, 1490, 747]],bg:['assets/01-kitchen-background.png'],counter:['assets/02-wide-counter-v4.png'],paper:['assets/03-wrapper.png',[24,329,1649,747]],bottom:['assets/04-bottom-bun-v2.png',[34,513,1221,980]],patty:['assets/05-beef-patty.png',[67,447,1189,846]],cheese:['assets/06-cheese.png',[75,513,1179,793]],top:['assets/07-top-bun.png',[38,370,1216,927]],middle:['assets/08-middle-bun-v2.png',[28,467,1227,864]],lettuce:['assets/09-lettuce.png',[34,464,1220,818]],hold:['assets/10-hand-hold.png'],release:['assets/11-hand-release-v3.png'],idle:['assets/12-hand-idle-v3.png']};
+ART.spoiledGrilled=['assets/14-spoiled-grilled.png',[20,230,1516,790]];ART.spoiledCrispy=['assets/14-spoiled-crispy.png',[20,230,1516,790]];ART.spoiledMayo=['assets/14-spoiled-mayo.png',[20,300,1516,720]];
 const FOOD={crispy:{name:'麦辣鸡腿排',w:275,h:94,lift:48},grilled:{name:'板烧鸡腿排',w:280,h:85,lift:42},mayo:{name:'蛋黄酱',w:253,h:35,lift:13},patty:{name:'牛肉饼',w:256,h:77,lift:39},cheese:{name:'芝士',w:277,h:53,lift:17},lettuce:{name:'生菜',w:285,h:64,lift:29},middle:{name:'中层面包',w:260,h:70,lift:38},top:{name:'顶部面包',w:270,h:123,lift:60},bottom:{name:'底部面包',w:260,h:88,lift:47}};
+for(const [type,base] of [['spoiledGrilled','grilled'],['spoiledCrispy','crispy'],['spoiledMayo','mayo']])FOOD[type]={...FOOD[base],base,spoiled:true};
+// Difficulty knobs: normal recipe ingredients always remain available.
+const CHALLENGE={badChance:.65,twoBadChance:.25,pickupBand:18,pickupWidth:.38,workHalfWidth:175};
+let discarded=0,orderReadyAt=0;
 let orderIndex=0,sessionScores=[],serveRequested=false,hoveredIngredient=null,ingredientZones=[];
 const currentOrder=()=>R.ORDERS[orderIndex];
-const score=()=>R.summarize(rows,elapsed,currentOrder().layers);
+const score=()=>R.summarize(rows.map(r=>({...r,type:FOOD[r.type].base||r.type,spoiled:!!FOOD[r.type].spoiled})),elapsed,currentOrder().layers);
 // Challenge tuning: smaller neutral zone and faster response, with light smoothing.
 const deviceNav=window.navigator||{};
 const MOBILE=!!deviceNav.userAgentData?.mobile||/Android|iPhone|iPad|iPod/i.test(deviceNav.userAgent||'')||(deviceNav.platform==='MacIntel'&&deviceNav.maxTouchPoints>1);
@@ -14,7 +19,7 @@ let gyroVelocity={x:0,y:0};
 function resetInertia(){gyroVelocity={x:0,y:0};}
 // Substeps keep the underdamped response consistent across screen refresh rates.
 function moveGyro(dt){const steps=Math.max(1,Math.ceil(dt*120)),h=dt/steps;for(let i=0;i<steps;i++){for(const axis of ['x','y']){gyroVelocity[axis]=R.clamp(gyroVelocity[axis]+((target[axis]-hand[axis])*GYRO.spring-gyroVelocity[axis]*GYRO.damping)*h,-GYRO.maxSpeed,GYRO.maxSpeed);hand[axis]+=gyroVelocity[axis]*h;const lo=axis==='x'?handLimits().left:170,hi=axis==='x'?handLimits().right:860,bounded=R.clamp(hand[axis],lo,hi);if(bounded!==hand[axis]){hand[axis]=bounded;gyroVelocity[axis]=0;}}}}
-const choices=Object.keys(FOOD),imgs={},keys=new Set();let scale=1,stageWidth=1600,ready=false,mode='intro',selection=null,elapsed=0,rows=[],stack=[],fall=null,settle=0,surface=690,previousX=800,hand={x:800,y:340},target={x:800,y:340},heldHeight=340,feedbackUntil=0,last=performance.now(),audioOn=true,audioCtx,gyroOn=false,lastSensor=null,neutral=null,sensorTime=0,dragging=false,toastTimer,feedback='';
+const choices=Object.keys(FOOD).filter(t=>!FOOD[t].spoiled),imgs={},keys=new Set();let scale=1,stageWidth=1600,ready=false,mode='intro',selection=null,elapsed=0,rows=[],stack=[],fall=null,settle=0,surface=690,previousX=800,hand={x:800,y:340},target={x:800,y:340},heldHeight=340,feedbackUntil=0,last=performance.now(),audioOn=true,audioCtx,gyroOn=false,lastSensor=null,neutral=null,sensorTime=0,dragging=false,toastTimer,feedback='';
 function resize(){const viewport=window.visualViewport;const width=viewport?.width||innerWidth,height=viewport?.height||innerHeight;scale=Math.min(width/1600,height/900);stageWidth=Math.max(1600,width/scale);cv.width=Math.round(stageWidth);handCv.width=Math.round(stageWidth);$('game').style.width=stageWidth+'px';$('game').style.transform=`scale(${scale})`;$('game').style.left=(viewport?.offsetLeft||0)+'px';$('game').style.top=((viewport?.offsetTop||0)+(height-900*scale)/2)+'px';refreshIngredientZones();}
 addEventListener('resize',resize);window.visualViewport?.addEventListener('resize',resize);window.visualViewport?.addEventListener('scroll',resize);addEventListener('orientationchange',()=>{resize();setTimeout(resize,250);setTimeout(resize,700);});resize();
 function art(c,type,x,y,w,h){const im=imgs[type];if(!im)return;const b=ART[type][1];if(b)c.drawImage(im,b[0],b[1],b[2]-b[0],b[3]-b[1],x-w/2,y,w,h);else c.drawImage(im,x-w/2,y,w,h);}
@@ -30,32 +35,70 @@ function recipeUI(){ $('orderName').textContent=currentOrder().name;$('orderProg
 function handLimits(){const offset=(stageWidth-1600)/2;return {left:30-offset,right:stageWidth-30-offset};}
 function refreshIngredientZones(){const bounds=cv.getBoundingClientRect(),offset=(stageWidth-1600)/2;ingredientZones=Array.from(document.querySelectorAll('.ingredient')).map(b=>{const r=b.getBoundingClientRect();return {type:b.dataset.type,left:(r.left-bounds.left)/scale-offset,right:(r.left+r.width-bounds.left)/scale-offset,top:(r.top-bounds.top)/scale,bottom:(r.top+r.height-bounds.top)/scale};});}
 function ingredientAtHand(){return ingredientZones.find(z=>hand.x>=z.left&&hand.x<=z.right&&hand.y>=z.top&&hand.y<=z.bottom)?.type||null;}
-function updateControls(){syncInputUI();hoveredIngredient=mode==='playing'&&!fall?ingredientAtHand():null;const busy=mode!=='playing'||!!fall||settle>0||serveRequested||rows.length>=12;
- $('serve').disabled=mode!=='playing'||serveRequested;$('serveHint').textContent=serveRequested?'落稳后立即出餐':'随时提交本单';
- document.querySelectorAll('.ingredient').forEach(b=>{b.classList.toggle('hovered',!busy&&b.dataset.type===hoveredIngredient);b.classList.toggle('selected',b.dataset.type===selection);});
- const grabbing=!!hoveredIngredient,canDrop=!!selection&&!grabbing&&hand.y<=surface-28;
- $('drop').disabled=busy||(grabbing?!!selection:!canDrop);$('drop').classList.toggle('grabbing',grabbing);$('dropLabel').textContent=grabbing?'抓取':'放下';
- $('dropHint').textContent=fall?'正在下落':settle>0?'食材落稳中':grabbing?(selection?'已拿起，请移开':FOOD[hoveredIngredient].name):selection?(canDrop?FOOD[selection].name:'移到汉堡上方'):'先移到原料上';
- $('selectionLabel').textContent=selection?'手中：'+FOOD[selection].name:hoveredIngredient?'可抓取：'+FOOD[hoveredIngredient].name:'移到原料上，再点击抓取';
+function topAtHand(){
+ if(selection||fall||!stack.length||mode!=='playing'||settle>0||serveRequested)return null;
+ const top=stack[stack.length-1],f=FOOD[top.type];
+ return Math.abs(hand.x-top.x)<=f.w*CHALLENGE.pickupWidth&&hand.y>=top.y-7&&hand.y<=top.y+Math.min(CHALLENGE.pickupBand,f.h*.28)?top:null;
 }
-function grabOrDrop(){if(mode!=='playing'||fall||settle>0||serveRequested||rows.length>=12)return;const over=ingredientAtHand();if(over){if(selection)return;selection=over;resetInertia();beep(460,.08);updateControls();return;}drop();}
+function outsideWorkArea(){return Math.abs(hand.x-800)>CHALLENGE.workHalfWidth||hand.y>735;}
+function updateControls(){syncInputUI();hoveredIngredient=mode==='playing'&&!fall&&!selection?ingredientAtHand():null;
+ const busy=mode!=='playing'||performance.now()<orderReadyAt||!!fall||settle>0||serveRequested,top=topAtHand();
+ $('serve').disabled=mode!=='playing'||performance.now()<orderReadyAt||serveRequested;$('serveHint').textContent=serveRequested?'落稳后立即出餐':'随时提交本单';
+ document.querySelectorAll('.ingredient').forEach(b=>{b.classList.toggle('hovered',!busy&&b.dataset.type===hoveredIngredient);b.classList.toggle('selected',b.dataset.type===selection);});
+ const grabbing=!!hoveredIngredient&&!selection,canDrop=!!selection&&(outsideWorkArea()||hand.y<=surface-28)&&stack.length<12;
+ $('drop').disabled=busy||(!top&&!grabbing&&!canDrop);$('drop').classList.toggle('grabbing',grabbing);$('drop').classList.toggle('picking-up',!!top);$('drop').classList.toggle('discarding',!!selection&&outsideWorkArea());$('dropLabel').textContent=top?'拿起':grabbing?'抓取':'放下';
+ $('dropHint').textContent=fall?'正在下落':settle>0?'食材落稳中':top?'最上层食材':grabbing?FOOD[hoveredIngredient].name:selection?(outsideWorkArea()?'松手扔掉':canDrop?FOOD[selection].name:'移到汉堡上方'):'先移到原料上';
+ $('selectionLabel').textContent='';
+}
+function grabOrDrop(){
+ if(mode!=='playing'||performance.now()<orderReadyAt||fall||settle>0||serveRequested)return;
+ if(selection){drop();return;}
+ const top=topAtHand();
+ if(top){stack.pop();rows.pop();surface=top.surfaceBefore;previousX=stack.length?stack[stack.length-1].x:800;selection=top.type;resetInertia();beep(520,.08);updateControls();return;}
+ const over=ingredientAtHand();if(over&&stack.length<12){selection=over;resetInertia();beep(460,.08);updateControls();}
+}
+function randomizeTray(){
+ let list=[...choices];const bad=['spoiledGrilled','spoiledCrispy','spoiledMayo'].sort(()=>Math.random()-.5);
+ if(Math.random()<CHALLENGE.badChance){list[list.indexOf('bottom')]=bad[0];if(Math.random()<CHALLENGE.twoBadChance)list[list.indexOf('middle')]=bad[1];}
+ for(let i=list.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[list[i],list[j]]=[list[j],list[i]];}
+ const old=Array.from(document.querySelectorAll('.ingredient')).map(b=>b.dataset.type).join(',');if(list.join(',')===old)list.push(list.shift());
+ $('ingredients').innerHTML='';
+ list.forEach(t=>{const b=document.createElement('div');b.className='ingredient';b.dataset.type=t;b.setAttribute('role','img');b.setAttribute('aria-label',FOOD[t].name+(FOOD[t].spoiled?'，有变质迹象':''));b.innerHTML=`<canvas width="190" height="92"></canvas><span>${FOOD[t].name}</span>`;$('ingredients').append(b);const c=b.querySelector('canvas').getContext('2d'),f=FOOD[t];art(c,t,95,(92-f.h*.55)/2,150,f.h*.55);});
+ refreshIngredientZones();
+}
 function start(){if(!ready)return;if(gateMobile(start))return;orderIndex=0;sessionScores=[];beginOrder();}
-function beginOrder(){resetInertia();hoveredIngredient=null;serveRequested=false;dragging=false;mode='playing';selection=null;elapsed=0;rows=[];stack=[];fall=null;settle=0;surface=690;previousX=800;hand={x:800,y:340};target={...hand};keys.clear();feedback='';$('overlay').hidden=true;$('resultOverlay').hidden=true;$('pauseOverlay').hidden=true;$('showResult').hidden=true;recipeUI();updateControls();musicPlay(true);beep();last=performance.now();}
-function drop(){if(mode!=='playing'||!selection||fall||settle>0||serveRequested||rows.length>=12||ingredientAtHand()||hand.y>surface-28)return;const f=FOOD[selection],y=R.clamp(hand.y,170,surface-28);heldHeight=y;resetInertia();fall={type:selection,x:hand.x,from:y,y,age:0,target:surface,previousX,landed:Math.abs(hand.x-previousX)<=175};beep(390,.06);updateControls();}
-function land(){const a=fall,f=FOOD[a.type],neat=a.landed?R.alignment(a.x,a.previousX):0;rows.push({type:a.type,landed:a.landed,alignment:neat,x:Math.round(a.x),height:Math.round(a.target-a.from),seconds:Math.round(elapsed*10)/10});if(a.landed){stack.push({type:a.type,x:a.x,y:surface-f.h*.72});surface-=f.lift;previousX=a.x;}
- feedback='';feedbackUntil=0;beep(650,.14);fall=null;selection=null;settle=.2;recipeUI();updateControls();if(serveRequested)finish();else if(rows.length>=12)toast('操作台已满，请点击出餐');}
-function serve(){if(mode!=='playing'||serveRequested)return;serveRequested=true;selection=null;if(fall){updateControls();return;}finish();}
+function beginOrder(){orderReadyAt=performance.now()+(orderIndex?400:0);resetInertia();discarded=0;hoveredIngredient=null;serveRequested=false;dragging=false;mode='playing';selection=null;elapsed=0;rows=[];stack=[];fall=null;settle=0;surface=690;previousX=800;hand={x:800,y:340};target={...hand};keys.clear();feedback='';$('overlay').hidden=true;$('resultOverlay').hidden=true;$('pauseOverlay').hidden=true;$('showResult').hidden=true;recipeUI();randomizeTray();updateControls();musicPlay(orderIndex===0);beep();last=performance.now();}
+function drop(){
+ if(mode!=='playing'||!selection||fall||settle>0||serveRequested||stack.length>=12)return;
+ const outside=outsideWorkArea();if(!outside&&hand.y>surface-28)return;
+ const landed=!outside&&Math.abs(hand.x-previousX)<=175,y=hand.y;heldHeight=y;resetInertia();
+ fall={type:selection,x:hand.x,from:y,y,age:0,target:landed?surface:1000,previousX,landed};beep(390,.06);updateControls();
+}
+function land(){const a=fall,f=FOOD[a.type];
+ if(a.landed){rows.push({type:a.type,landed:true,alignment:R.alignment(a.x,a.previousX),x:Math.round(a.x),height:Math.round(a.target-a.from),seconds:Math.round(elapsed*10)/10});stack.push({type:a.type,x:a.x,y:surface-f.h*.72,surfaceBefore:surface});surface-=f.lift;previousX=a.x;}else discarded++;
+ feedback='';feedbackUntil=0;beep(650,.14);fall=null;selection=null;settle=.2;randomizeTray();updateControls();if(serveRequested)finish();else if(stack.length>=12)toast('操作台已满，可拿起返工或出餐');}
+function serve(){if(mode!=='playing'||performance.now()<orderReadyAt||serveRequested)return;serveRequested=true;selection=null;if(fall){updateControls();return;}finish();}
 function nextOrder(){if(mode!=='result')return;if(gateMobile(nextOrder))return;if(sessionScores.length===10){start();return;}orderIndex++;beginOrder();}
-function finish(){if(mode!=='playing')return;mode='result';musicPause();keys.clear();fall=null;const s=score();sessionScores.push({...s,name:currentOrder().name});$('resultOverlay').hidden=false;$('total').textContent=s.total;$('resultTitle').textContent=s.landed<currentOrder().layers.length?'这单还差一点':s.total>=95?'金牌叠堡师！':s.total>=80?'漂亮出餐！':s.total>=60?'完成，再稳一点':'再练一单吧';$('resultMeta').textContent=`用时 ${elapsed.toFixed(1)} 秒，落稳 ${s.landed} / ${currentOrder().layers.length} 层`;
- const done=sessionScores.length===10;
- const shown=done?Object.fromEntries(['total','accuracy','neat','speed'].map(k=>[k,Math.round(sessionScores.reduce((a,r)=>a+r[k],0)/10)])):s;
- $('total').textContent=shown.total;$('resultEyebrow').textContent=done?'十单挑战，全部完成':`第 ${orderIndex+1} / 10 单，已出餐`;
- if(done){$('resultTitle').textContent='十单出餐完成！';$('resultMeta').textContent=`总用时 ${sessionScores.reduce((a,r)=>a+r.seconds,0).toFixed(1)} 秒，以下为 10 单平均成绩`;}
- $('again').textContent=done?'再挑战 10 单':'下一单 → '+R.ORDERS[orderIndex+1].name;
- $('scoreDetails').innerHTML=[['出餐准确度',shown.accuracy,'40%','食材种类、数量与排列顺序'],['形态规整度',shown.neat,'40%','层间对齐＋整体居中，漏层与滑落扣分'],['出餐速度',shown.speed,'20%','每层目标 3 秒；缺层降低速度得分']].map(([n,v,w,d])=>`<div class="score-row">${n}<b>${v}<small>权重 ${w}</small></b><small>${d}</small><div class="score-track"><i style="width:${v}%"></i></div></div>`).join('');
- $('roundLog').innerHTML=Array.from({length:Math.max(rows.length,currentOrder().layers.length)},(_,i)=>{const t=currentOrder().layers[i],r=rows[i];return `第 ${i+1} 层：应放 ${t?FOOD[t].name:'无（多放）'} → ${r?FOOD[r.type].name+'，'+(!r.landed?'滑落':r.type===t?'正确':'放错了！')+'，规整 '+r.alignment+' 分':'未放置'}`;}).join('<br>');
- $('sessionLog').innerHTML=sessionScores.map((r,i)=>`第 ${i+1} 单，${r.name}，${r.total} 分，${r.seconds.toFixed(1)} 秒`).join('<br>');
- const c=$('resultBurger').getContext('2d');c.clearRect(0,0,400,400);c.save();const topY=Math.min(643,...stack.map(a=>a.y)),leftX=Math.min(550,...stack.map(a=>a.x-160)),rightX=Math.max(1050,...stack.map(a=>a.x+160));const fit=Math.min(360/(rightX-leftX),350/(765-topY));c.translate(200-(leftX+rightX)/2*fit,375-765*fit);c.scale(fit,fit);art(c,'paper',800,682,460,115);art(c,'bottom',800,660,260,90);stack.forEach(a=>{const f=FOOD[a.type];art(c,a.type,a.x,a.y,f.w,f.h)});c.restore();updateControls();beep(1050,.25);}
+function finish(){
+ if(mode!=='playing')return;
+ const s=score(),number=orderIndex+1;sessionScores.push({...s,name:currentOrder().name,discarded});keys.clear();fall=null;selection=null;
+ if(sessionScores.length<10){
+  orderIndex++;beginOrder();
+  if(s.incident){$('toast').classList.add('incident-toast');toast(`顾客生气了！第 ${number} 单含变质食材，食品安全事故，本单 0 分`);}else{$('toast').classList.remove('incident-toast');toast(`第 ${number} 单已出餐，${s.total} 分`);}
+  return;
+ }
+ mode='result';musicPause();clearTimeout(toastTimer);$('toast').style.opacity=0;$('resultOverlay').hidden=false;
+ const shown=Object.fromEntries(['total','accuracy','neat','speed'].map(k=>[k,Math.round(sessionScores.reduce((a,r)=>a+r[k],0)/10)])),incidents=sessionScores.filter(r=>r.incident).length;
+ $('total').textContent=shown.total;$('resultEyebrow').textContent='十单挑战，全部完成';$('resultTitle').textContent=incidents?'食品安全事故！':'十单出餐完成！';
+ $('resultOverlay').classList.toggle('food-incident',incidents>0);
+ $('safetyReport').hidden=!incidents;$('safetyReport').innerHTML=incidents?`<span class="angry-customer" aria-label="生气的顾客">😠</span><div><strong>顾客很生气！</strong><p>${incidents} 单送出了变质食材，相关订单记 0 分。</p></div>`:'';
+ $('resultMeta').textContent=`总用时 ${sessionScores.reduce((a,r)=>a+r.seconds,0).toFixed(1)} 秒，平均 ${shown.total} 分`;
+ $('again').textContent='再挑战 10 单';
+ $('scoreDetails').innerHTML=[['出餐准确度',shown.accuracy,'40%'],['形态规整度',shown.neat,'40%'],['出餐速度',shown.speed,'20%']].map(([n,v,w])=>`<div class="score-row">${n}<b>${v}<small>权重 ${w}</small></b><div class="score-track"><i style="width:${v}%"></i></div></div>`).join('');
+ $('roundLog').innerHTML='';
+ $('sessionLog').innerHTML=sessionScores.map((r,i)=>`<div class="order-result${r.incident?' unsafe':''}"><span>第 ${i+1} 单</span><strong>${r.name}</strong><b>${r.total} 分</b><small>${r.incident?'食品安全事故':r.seconds.toFixed(1)+' 秒'}</small></div>`).join('');
+ const c=$('resultBurger').getContext('2d');c.clearRect(0,0,400,400);c.save();const topY=Math.min(643,...stack.map(a=>a.y)),leftX=Math.min(550,...stack.map(a=>a.x-160)),rightX=Math.max(1050,...stack.map(a=>a.x+160));const fit=Math.min(360/(rightX-leftX),350/(765-topY));c.translate(200-(leftX+rightX)/2*fit,375-765*fit);c.scale(fit,fit);art(c,'paper',800,682,460,115);art(c,'bottom',800,660,260,90);stack.forEach(a=>{const f=FOOD[a.type];art(c,a.type,a.x,a.y,f.w,f.h)});c.restore();updateControls();beep(incidents?180:1050,.25);
+}
 function pause(){if(mode!=='playing')return;mode='paused';resetInertia();musicPause();keys.clear();$('pauseOverlay').hidden=false;updateControls();}
 function resume(){if(mode!=='paused')return;if(gateMobile(resume))return;mode='playing';keys.clear();last=performance.now();$('pauseOverlay').hidden=true;musicPlay();updateControls();}
 function syncInputUI(){
@@ -99,18 +142,18 @@ function draw(){ctx.clearRect(0,0,stageWidth,900);art(ctx,'bg',stageWidth/2,0,st
  handCtx.clearRect(0,0,stageWidth,900);handCtx.save();handCtx.translate((stageWidth-1600)/2,0);
  if(mode==='playing'||mode==='paused'||mode==='intro'){const x=fall?fall.x:hand.x,y=fall?heldHeight:hand.y;const f=FOOD[selection||fall?.type||'patty'];if(selection&&!fall&&hand.y<=surface-28){handCtx.setLineDash([6,12]);handCtx.strokeStyle='#96612477';handCtx.lineWidth=3;handCtx.beginPath();handCtx.moveTo(x,y);handCtx.lineTo(x,surface);handCtx.stroke();handCtx.setLineDash([]);handCtx.fillStyle='#71492033';handCtx.beginPath();handCtx.ellipse(x,surface+9,65,11,0,0,Math.PI*2);handCtx.fill();}
  // Keep the same full-canvas transform across hand poses; sleeve extends beyond the screen.
- art(handCtx,fall?'release':selection?'hold':'idle',x-4,y-560,455,568);
+ art(handCtx,fall?'release':selection?'hold':'idle',x-4,y-(selection||fall?560:520),455,568);
  if(fall){const a=fall;art(handCtx,a.type,a.x,a.y-FOOD[a.type].h*.72,FOOD[a.type].w,FOOD[a.type].h);}else if(selection)art(handCtx,selection,x,y-f.h*.72,f.w,f.h);
  }
-handCtx.restore();ctx.restore();}
+const pickup=topAtHand();if(pickup){handCtx.strokeStyle='#43b77d';handCtx.lineWidth=5;handCtx.beginPath();handCtx.ellipse(pickup.x,pickup.y+8,FOOD[pickup.type].w*.42,12,0,0,Math.PI*2);handCtx.stroke();}handCtx.restore();ctx.restore();}
 let hudTick=0;
 function frame(now){const raw=Math.max(0,(now-last)/1000),dt=Math.min(raw,.05);last=now;if(mode==='playing'&&raw>1.5){pause();toast('画面中断，已自动暂停');}if(mode==='playing'){if(elapsed+raw>=60){elapsed=60;finish();draw();requestAnimationFrame(frame);return;}elapsed+=raw;if(gyroOn&&lastSensor&&now-sensorTime>3500){sensorFailure('体感信号中断，请保持横屏后重新开启。');if(MOBILE){draw();requestAnimationFrame(frame);return;}}if(!fall){const dx=(keys.has('ArrowRight')?1:0)-(keys.has('ArrowLeft')?1:0),dy=(keys.has('ArrowDown')?1:0)-(keys.has('ArrowUp')?1:0);target.x=R.clamp(target.x+dx*330*dt,handLimits().left,handLimits().right);target.y=R.clamp(target.y+dy*260*dt,170,860);if(gyroOn){moveGyro(dt);}else{const smooth=1-Math.exp(-dt*18);hand.x+=(target.x-hand.x)*smooth;hand.y+=(target.y-hand.y)*smooth;}}
- if(fall){fall.age+=dt;fall.y=fall.from+.5*900*fall.age*fall.age;if(fall.y>=fall.target){if(fall.landed||fall.y>800){land();} }}
+ if(fall){fall.age+=dt;fall.y=fall.from+.5*900*fall.age*fall.age;if(fall.y>=fall.target){land(); }}
  if(settle>0){settle=Math.max(0,settle-dt);if(!settle)updateControls();}if(elapsed>=60&&mode==='playing'){elapsed=60;finish();}}
  updateControls();
  if(now-hudTick>80){hudTick=now;$('time').innerHTML=elapsed.toFixed(1)+'<small> 秒</small>';$('timebar').style.width=100*(1-elapsed/60)+'%';$('layers').textContent=rows.length+' / '+currentOrder().layers.length;$('orderScore').textContent=score().accuracy+' 分';$('neatScore').textContent=rows.length?score().neat+' 分':'—';const gap=surface-hand.y;$('heightbar').style.width=R.clamp(gap/350*100,0,100)+'%';$('heightText').textContent=gap<75?'低位':gap<180?'中位':'高位';$('feedback').textContent=mode==='playing'&&elapsed<feedbackUntil?feedback:'';}
  if(ready)draw();requestAnimationFrame(frame);}
 $('start').onclick=start;$('startGyro').onclick=()=>enableGyro(start);$('gyro').onclick=()=>enableGyro();$('calibrate').onclick=calibrate;$('drop').onclick=grabOrDrop;$('pause').onclick=pause;$('resume').onclick=resume;$('restart').onclick=start;$('again').onclick=nextOrder;$('serve').onclick=serve;$('inspect').onclick=()=>{$('resultOverlay').hidden=true;$('showResult').hidden=false;};$('showResult').onclick=()=>{$('resultOverlay').hidden=false;$('showResult').hidden=true;};$('sound').onclick=()=>{audioOn=!audioOn;if(audioOn)musicPlay();else musicPause();$('sound').textContent='声音 '+(audioOn?'开':'关');$('sound').setAttribute('aria-label',audioOn?'关闭声音':'开启声音');};
-Promise.all(Object.entries(ART).map(([k,[url]])=>new Promise((resolve,reject)=>{const im=new Image;im.onload=()=>{imgs[k]=im;resolve();};im.onerror=()=>reject(Error(url));im.src=url;}))).then(()=>{ready=true;$('loadStatus').textContent='食材准备就绪，共 10 单，每单最多 60 秒';$('start').disabled=false;$('startGyro').disabled=false;choices.forEach((t,i)=>{const b=document.createElement('div');b.className='ingredient';b.dataset.type=t;b.setAttribute('role','img');b.setAttribute('aria-label',FOOD[t].name);b.innerHTML=`<canvas width="190" height="92"></canvas><span>${FOOD[t].name}</span>`;$('ingredients').append(b);const c=b.querySelector('canvas').getContext('2d'),f=FOOD[t];art(c,t,95,(92-f.h*.55)/2,150,f.h*.55);});refreshIngredientZones();recipeUI();updateControls();}).catch(e=>{$('loadStatus').textContent='素材加载失败，请刷新重试：'+e.message;});requestAnimationFrame(frame);
+Promise.all(Object.entries(ART).map(([k,[url]])=>new Promise((resolve,reject)=>{const im=new Image;im.onload=()=>{imgs[k]=im;resolve();};im.onerror=()=>reject(Error(url));im.src=url;}))).then(()=>{ready=true;$('loadStatus').textContent='食材准备就绪，共 10 单，每单最多 60 秒';$('start').disabled=false;$('startGyro').disabled=false;randomizeTray();recipeUI();updateControls();}).catch(e=>{$('loadStatus').textContent='素材加载失败，请刷新重试：'+e.message;});requestAnimationFrame(frame);
 
 syncInputUI();

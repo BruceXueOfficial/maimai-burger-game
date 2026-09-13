@@ -17,7 +17,8 @@ function summarize(rows,seconds,recipe=RECIPE){
  const coverage=Math.min(landed/n,1),accuracy=100*match*coverage;
  const neat=rows.reduce((a,r)=>a+(r.landed?r.alignment:0),0)/den;
  const target=n*3,speed=100*clamp((60-seconds)/(60-target),0,1)*coverage;
- return {order:Math.round(accuracy),accuracy:Math.round(accuracy),neat:Math.round(neat),speed:Math.round(speed),total:Math.round(.4*accuracy+.4*neat+.2*speed),landed,seconds};
+ const incident=rows.some(r=>r.landed&&r.spoiled);
+ return {incident,order:Math.round(accuracy),accuracy:Math.round(accuracy),neat:Math.round(neat),speed:Math.round(speed),total:incident?0:Math.round(.4*accuracy+.4*neat+.2*speed),landed,seconds};
 }
 function tilt(beta,gamma,angle){const a=angle*Math.PI/180;return {x:gamma*Math.cos(a)+beta*Math.sin(a),y:beta*Math.cos(a)-gamma*Math.sin(a)};}
 const api={clamp,MENU,ORDERS,RECIPE,alignment,summarize,tilt,distance};if(typeof module!=='undefined')module.exports=api;else root.BurgerRules=api;
