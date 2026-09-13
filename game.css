@@ -31,3 +31,6 @@ button,input,select,textarea,kbd{font-family:"Alimama ShuHei",sans-serif}html{fo
 #drop::before,#serve::before{display:block;width:34px;height:34px;margin:0 auto 4px}.top-actions .small{display:inline-flex;align-items:center;justify-content:center;padding:0 17px;gap:4px}.top-actions .small::before{width:27px;height:27px;margin:0 5px 0 0}.tabs button{display:inline-flex;align-items:center}.tabs button::before{width:20px;height:20px}.score-row::before{width:25px;height:25px}.total>span::before{color:#ad7200}.order .eyebrow{letter-spacing:1px}.modal .eyebrow::before{width:26px;height:26px}#pauseOverlay h1::before{width:48px;height:48px}
 
 html,body{position:fixed;inset:0;overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjust:100%}#game{position:fixed}
+
+/* Expand the stage, preserving the scale of the interactive scene and UI. */
+#showResult{left:50%;transform:translateX(-50%)}
