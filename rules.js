@@ -11,10 +11,10 @@ const ORDERS=['classic','spicy','grilled','double','chickencheese','spicy','doub
 const RECIPE=MENU[0].layers;
 function alignment(x,previous,base=800,width=260){return Math.round(100*(.7*clamp(1-Math.abs(x-previous)/width/.4,0,1)+.3*clamp(1-Math.abs(x-base)/width/.5,0,1)));}
 function distance(a,b){const d=Array.from({length:a.length+1},(_,i)=>[i,...Array(b.length).fill(0)]);for(let j=0;j<=b.length;j++)d[0][j]=j;for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[a.length][b.length];}
-function summarize(rows,seconds,recipe=RECIPE,dishCorrect=true){
+function summarize(rows,seconds,recipe=RECIPE){
  const n=recipe.length,den=Math.max(n,rows.length),landed=rows.filter(r=>r.landed).length;
  const match=clamp(1-distance(rows.map(r=>r.landed?r.type:'_miss'),recipe)/den,0,1);
- const coverage=Math.min(landed/n,1),accuracy=100*(.8*match+.2*(dishCorrect?1:0))*coverage;
+ const coverage=Math.min(landed/n,1),accuracy=100*match*coverage;
  const neat=rows.reduce((a,r)=>a+(r.landed?r.alignment:0),0)/den;
  const target=n*3,speed=100*clamp((60-seconds)/(60-target),0,1)*coverage;
  return {order:Math.round(accuracy),accuracy:Math.round(accuracy),neat:Math.round(neat),speed:Math.round(speed),total:Math.round(.4*accuracy+.4*neat+.2*speed),landed,seconds};

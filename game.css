@@ -34,3 +34,8 @@ html,body{position:fixed;inset:0;overscroll-behavior:none;-webkit-text-size-adju
 
 /* Expand the stage, preserving the scale of the interactive scene and UI. */
 #showResult{left:50%;transform:translateX(-50%)}
+
+/* The hand reaches into the ingredient rail; only the action buttons are clickable. */
+#handScene{position:absolute;inset:0;width:100%;height:100%;z-index:5;pointer-events:none}#serve,#drop{z-index:6}header,.order,.metrics{z-index:6}#showResult{z-index:10}.ingredient{cursor:default;user-select:none;transition:background .1s,border-color .1s,box-shadow .1s}.ingredient.hovered{border-color:#d92b10;background:#fffbe5;box-shadow:0 0 0 3px #ffbc0d,0 0 18px #ffcc42;transform:translateY(-3px)}.ingredient.selected:not(.hovered){border-color:#bf8200;background:#ffe3a0;box-shadow:none}#ingredients{overflow:visible}.ingredient{min-width:0;flex:1}.ingredient canvas{max-width:100%}#materialHeading{font-size:19px}#drop.grabbing{background:#ffe785}#drop.grabbing::before{transform:rotate(180deg)}
+
+.ingredient.hovered:after{content:"";position:absolute;top:4px;right:5px;width:10px;height:10px;border-radius:50%;background:#d92b10}.ingredient.hovered{outline:3px solid #d92b10;outline-offset:-3px}
