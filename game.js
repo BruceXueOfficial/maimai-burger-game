@@ -89,7 +89,10 @@ function randomizeTray(){
  list.forEach(t=>{const b=document.createElement('div');b.className='ingredient';b.dataset.type=t;b.setAttribute('role','img');b.setAttribute('aria-label',FOOD[t].name+(FOOD[t].spoiled?'，有变质迹象':''));b.innerHTML=`<canvas width="190" height="92"></canvas><span>${FOOD[t].name}</span>`;$('ingredients').append(b);const c=b.querySelector('canvas').getContext('2d'),f=FOOD[t];art(c,t,95,(92-f.h*.55)/2,150,f.h*.55);});
  refreshIngredientZones();
 }
-function start(){if(!ready)return;if(gateMobile(start))return;orderIndex=0;sessionScores=[];beginOrder();}
+const storyEmbedded=!!window.location && new URLSearchParams(window.location.search).get('embedded')==='1' && window.parent!==window;
+let rewardPending=false;
+window.addEventListener('message',event=>{if(event.origin===location.origin&&event.source===window.parent&&event.data?.type==='burger-reward-saved'){rewardPending=false;$('again').disabled=false;}});
+function start(){if(rewardPending)return;if(!ready)return;if(gateMobile(start))return;if(storyEmbedded)window.parent.postMessage({type:'burger-start'},location.origin);orderIndex=0;sessionScores=[];beginOrder();}
 function beginOrder(){orderReadyAt=performance.now()+(orderIndex?400:0);resetInertia();discarded=0;hoveredIngredient=null;serveRequested=false;dragging=false;mode='playing';selection=null;elapsed=0;rows=[];stack=[];fall=null;settle=0;surface=690;previousX=800;hand={x:800,y:340};target={...hand};keys.clear();feedback='';$('overlay').hidden=true;$('resultOverlay').hidden=true;$('pauseOverlay').hidden=true;$('showResult').hidden=true;recipeUI();randomizeTray();updateControls();musicPlay(orderIndex===0);beep();last=performance.now();}
 function drop(){
  if(mode!=='playing'||!selection||fall||settle>0||serveRequested||stack.length>=12)return;
@@ -111,6 +114,7 @@ function finish(){
   return;
  }
  mode='result';musicPause();clearTimeout(toastTimer);$('toast').style.opacity=0;$('resultOverlay').hidden=false;
+ if(storyEmbedded){rewardPending=true;$('again').disabled=true;window.parent.postMessage({type:'burger-complete',scores:sessionScores.map(r=>r.total)},location.origin);}
  const shown=Object.fromEntries(['total','accuracy','neat','speed'].map(k=>[k,Math.round(sessionScores.reduce((a,r)=>a+r[k],0)/10)])),incidents=sessionScores.filter(r=>r.incident).length;
  $('total').textContent=shown.total;$('resultEyebrow').textContent='十单挑战，全部完成';$('resultTitle').textContent=incidents?'食品安全事故！':'十单出餐完成！';
  $('resultOverlay').classList.toggle('food-incident',incidents>0);
@@ -184,3 +188,11 @@ Promise.all(Object.entries(ART).map(([k,[url]])=>new Promise((resolve,reject)=>{
 syncInputUI();
 
 $('sessionLog').onclick=event=>{const button=event.target.closest('[data-review]');if(button)selectCustomerReview(Number(button.dataset.review));};
+
+$('fullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else if(document.fullscreenEnabled&&document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();else alert('请在浏览器分享或菜单中选择“添加到主屏幕”，再从桌面图标打开游戏。');}catch{alert('浏览器未允许全屏，请从主屏幕打开游戏。');}};
+if(storyEmbedded)$('fullscreen').hidden=true;
+document.addEventListener?.('fullscreenchange',()=>{$('fullscreen').textContent=document.fullscreenElement?'退出全屏':'全屏';resize();});
+
+$('introFullscreen').onclick=$('fullscreen').onclick;
+if(storyEmbedded)$('introFullscreen').hidden=true;
+document.addEventListener?.('fullscreenchange',()=>{$('introFullscreen').textContent=document.fullscreenElement?'退出全屏':'进入全屏';});

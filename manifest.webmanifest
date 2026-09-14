@@ -1,0 +1,10 @@
+{
+  "name": "麦麦叠堡师",
+  "short_name": "麦麦叠堡师",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#ffbc0d",
+  "theme_color": "#ffbc0d"
+}
