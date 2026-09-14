@@ -102,3 +102,37 @@ body{background:transparent}
 #resultOverlay .customer-review{position:absolute;top:62px;left:20px;right:20px;margin:0;z-index:2;}
 #resultOverlay .result-scroll{margin-top:148px;max-height:452px;padding-top:16px;}
 #resultOverlay .result{background:#fff3c9;border:9px solid #ffbc0d;}
+
+/* Larger type and wider HUD for landscape phone play. */
+.order{width:350px;padding:24px;top:128px;}
+.order .eyebrow{font-size:26px;letter-spacing:1px;}
+.order h2{font-size:36px;margin:12px 0 18px;}
+.order p{font-size:24px;margin-bottom:14px;}
+.order li{height:58px;font-size:28px;padding:0 14px;gap:14px;}
+.order li .number{width:34px;height:34px;font-size:22px;flex-shrink:0;}
+.order ol{gap:9px;}#queue{gap:7px;margin-top:18px;}#queue i{height:10px;width:22px;}
+.metrics{width:330px;top:128px;gap:20px;}
+.timer,.live,.height{padding:24px;}
+.timer>span,.height>span{font-size:28px;}
+.timer strong{font-size:78px;line-height:1.2;}.timer strong small{font-size:28px;}
+.timer small,.height small{font-size:22px;}.time-track{height:12px;margin:14px 0;}
+.live>div{font-size:27px;line-height:1.5;}.live b{font-size:28px;}
+.height b{font-size:32px;}.height-track{height:12px;}
+.brand{font-size:40px;}.brand small{display:none;}
+.top-actions .small{font-size:27px;min-width:110px;}
+.tray-label{font-size:27px;}.tray-label strong{font-size:28px;}
+.ingredient{font-size:24px;}.ingredient small{font-size:21px;}
+.drop span,.serve{font-size:42px;}.drop small,.serve small{font-size:23px;}
+.modal .intro{font-size:30px;line-height:1.6;}.modal .pill-row span{font-size:25px;}
+.modal small,#loadStatus{font-size:24px;}.modal-actions button{font-size:32px;}
+.customer-review strong{font-size:32px;}.customer-review span{font-size:27px;}.customer-review small{font-size:22px;}
+#resultOverlay .result-head h1{font-size:46px;}#resultMeta{font-size:25px;}
+.score-details .score-row{font-size:27px;}.score-details .score-row b{font-size:30px;}.score-details .score-row small{font-size:22px;}
+.result details{font-size:24px;}.result details p{font-size:23px;line-height:1.6;}
+#sessionLog .order-result{min-height:112px;grid-template-columns:72px 1fr 100px;}
+.customer-thumb{width:72px;height:72px;}
+.order-result-copy>span{font-size:22px;}.order-result-copy strong{font-size:27px;}.order-result-copy small{font-size:22px;}
+#sessionLog .order-result>b{font-size:30px;}
+#resultOverlay .modal-actions button{font-size:32px;}
+#feedback,#toast{font-size:32px;}
+.order p{display:none;}.order h2{margin:10px 0 14px;}

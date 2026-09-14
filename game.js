@@ -54,7 +54,7 @@ function musicPlay(reset=false){if(!bgm)return;if(reset)bgm.currentTime=0;if(aud
 function musicPause(){if(bgm)bgm.pause();}
 function musicDuck(){if(!bgm)return;bgm.volume=.24;clearTimeout(duckTimer);duckTimer=setTimeout(()=>{bgm.volume=.48;},230);}
 function beep(freq=620,duration=.09){if(!audioOn)return;musicDuck();try{audioCtx??=new (window.AudioContext||window.webkitAudioContext)();audioCtx.resume();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sine';o.frequency.setValueAtTime(freq,audioCtx.currentTime);g.gain.setValueAtTime(.065,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+duration);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+duration);}catch{}}
-function recipeUI(){ $('orderName').textContent=currentOrder().name;$('orderProgress').textContent=`第 ${orderIndex+1} / 10 单`;$('speedTarget').textContent=`${currentOrder().layers.length*3} 秒内完成，速度满分`;$('queue').innerHTML=R.ORDERS.map((o,i)=>`<i class="${i<orderIndex?'done':i===orderIndex?'current':''}"></i>`).join('');$('recipe').innerHTML=currentOrder().layers.map((t,i)=>`<li><span class="number">${i+1}</span>${FOOD[t].name}</li>`).join('');}
+function recipeUI(){ $('orderName').textContent=currentOrder().name;$('orderProgress').textContent=`第 ${orderIndex+1} / 10 单`;$('speedTarget').textContent=`${currentOrder().layers.length*3} 秒内速度满分`;$('queue').innerHTML=R.ORDERS.map((o,i)=>`<i class="${i<orderIndex?'done':i===orderIndex?'current':''}"></i>`).join('');$('recipe').innerHTML=currentOrder().layers.map((t,i)=>`<li><span class="number">${i+1}</span>${FOOD[t].name}</li>`).join('');}
 function handLimits(){const offset=(stageWidth-1600)/2;return {left:30-offset,right:stageWidth-30-offset};}
 function refreshIngredientZones(){const bounds=cv.getBoundingClientRect(),offset=(stageWidth-1600)/2;ingredientZones=Array.from(document.querySelectorAll('.ingredient')).map(b=>{const r=b.getBoundingClientRect();return {type:b.dataset.type,left:(r.left-bounds.left)/scale-offset,right:(r.left+r.width-bounds.left)/scale-offset,top:(r.top-bounds.top)/scale,bottom:(r.top+r.height-bounds.top)/scale};});}
 function ingredientAtHand(){return ingredientZones.find(z=>hand.x>=z.left&&hand.x<=z.right&&hand.y>=z.top&&hand.y<=z.bottom)?.type||null;}
@@ -66,7 +66,7 @@ function topAtHand(){
 function outsideWorkArea(){return Math.abs(hand.x-800)>CHALLENGE.workHalfWidth||hand.y>735;}
 function updateControls(){syncInputUI();hoveredIngredient=mode==='playing'&&!fall&&!selection?ingredientAtHand():null;
  const busy=mode!=='playing'||performance.now()<orderReadyAt||!!fall||settle>0||serveRequested,top=topAtHand();
- $('serve').disabled=mode!=='playing'||performance.now()<orderReadyAt||serveRequested;$('serveHint').textContent=serveRequested?'落稳后立即出餐':'随时提交本单';
+ $('serve').disabled=mode!=='playing'||performance.now()<orderReadyAt||serveRequested;$('serveHint').textContent=serveRequested?'落稳后立即出餐':'随时出餐';
  document.querySelectorAll('.ingredient').forEach(b=>{b.classList.toggle('hovered',!busy&&b.dataset.type===hoveredIngredient);b.classList.toggle('selected',b.dataset.type===selection);});
  const grabbing=!!hoveredIngredient&&!selection,canDrop=!!selection&&(outsideWorkArea()||hand.y<=surface-28)&&stack.length<12;
  $('drop').disabled=busy||(!top&&!grabbing&&!canDrop);$('drop').classList.toggle('grabbing',grabbing);$('drop').classList.toggle('picking-up',!!top);$('drop').classList.toggle('discarding',!!selection&&outsideWorkArea());$('dropLabel').textContent=top?'拿起':grabbing?'抓取':'放下';
